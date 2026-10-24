@@ -30,8 +30,8 @@ export const StandaloneSplatViewer: React.FC<StandaloneSplatViewerProps> = ({
     const containerRef = useRef<HTMLDivElement>(null);
     const viewerRef = useRef<any>(null);
     // User-verified camera defaults for head tracking base position
-    const baseCameraRef = useRef({ x: 0.72, y: 0.31, z: 0.05 });
-    const baseTargetRef = useRef({ x: 1.61, y: 1.02, z: -2.87 });
+    const baseCameraRef = useRef({ x: 0, y: 1.074, z: 0 });
+    const baseTargetRef = useRef({ x: -0.708, y: 0.628, z: -1.943 });
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -46,12 +46,12 @@ export const StandaloneSplatViewer: React.FC<StandaloneSplatViewerProps> = ({
 
         // EXACT settings from working splat-test.html Safe Mode
         const viewer = new GaussianSplats3D.Viewer({
-            // Camera - user verified coordinates, flipped to fix upside-down
-            'cameraUp': [0, -1, 0],
-            'useBuiltInControls': debugCameraControls, // Flip camera up vector to fix upside-down model
-            // Start at Calibration Target z=0.05 directly
-            'initialCameraPosition': [0.72, 0.31, 0.05],
-            'initialCameraLookAt': [1.61, 1.02, -2.87],
+            // Camera - corrected (metric) splat is +Y up, so no camera flip needed
+            'cameraUp': [0, 1, 0],
+            'useBuiltInControls': debugCameraControls,
+            // Corrected metric frame (calib/transform.json metric_camera / metric_lookat)
+            'initialCameraPosition': [0, 1.074, 0],
+            'initialCameraLookAt': [-0.708, 0.628, -1.943],
             // Safe Mode settings - CRITICAL for localhost without COOP/COEP
             'useWorker': false,
             'gpuAcceleratedSort': false,
@@ -95,8 +95,8 @@ export const StandaloneSplatViewer: React.FC<StandaloneSplatViewerProps> = ({
         if (!headX || !headY) return;
 
         // Base response scales
-        const XY_RESPONSE_BASE = 0.6;  // Reduced: less aggressive left/right
-        const DEPTH_SCALE = 1.5;       // Increased: more responsive Z-axis
+        const XY_RESPONSE_BASE = 0.405; // 0.6 * 0.675 metric scale
+        const DEPTH_SCALE = 1.01;      // 1.5 * 0.675 metric scale
 
         let animationId: number;
 
@@ -124,12 +124,15 @@ export const StandaloneSplatViewer: React.FC<StandaloneSplatViewerProps> = ({
             // This creates the "window into virtual world" parallax effect
 
             // Calculate target camera position
-            const targetX = baseCameraRef.current.x + hx * xyResponse;
-            const targetY = baseCameraRef.current.y - hy * xyResponse; // Fixed: Sign flipped physically match head movement
+            // MediaPipe landmarks are in the un-mirrored webcam frame: x grows to the image right
+            // (= user's left), y grows downward. Corrected scene is +X right, +Y up, so camera
+            // follows head: head right -> hx < 0 -> +X; head up -> hy < 0 -> +Y.
+            const targetX = baseCameraRef.current.x - hx * xyResponse;
+            const targetY = baseCameraRef.current.y - hy * xyResponse;
 
-            // Absolute Z calibration: Force 0.05 when HeadZ is -0.366
+            // Absolute Z calibration: camera at base z (0) when HeadZ is -0.366
             // Ignore baseCameraRef.z because viewer seems to overwrite it
-            const CALIBRATED_CAM_Z = 0.05;
+            const CALIBRATED_CAM_Z = 0;
             const CALIBRATED_HEAD_Z = -0.366;
             // Diff from calibration point
             const headZDiff = hz - CALIBRATED_HEAD_Z;
@@ -141,6 +144,8 @@ export const StandaloneSplatViewer: React.FC<StandaloneSplatViewerProps> = ({
             viewer.camera.position.x = targetX;
             viewer.camera.position.y = targetY;
             viewer.camera.position.z = targetZ;
+            const t0 = baseTargetRef.current;
+            viewer.camera.lookAt(t0.x, t0.y, t0.z);
 
             // KEY DIFFERENCE: Target stays FIXED at base position
             // This is what creates the parallax "window" effect

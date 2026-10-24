@@ -93,7 +93,7 @@ export const BackgroundManager: React.FC<BackgroundManagerProps> = ({
     return (
       <div className="absolute inset-0 z-0 bg-black">
         <StandaloneSplatViewer
-          url="Livingroom-in-Taipei.ply"
+          url="Livingroom-in-Taipei.metric.ply"
           className="w-full h-full"
           headX={effectiveX}
           headY={effectiveY}

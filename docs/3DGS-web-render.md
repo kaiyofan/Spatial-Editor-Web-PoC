@@ -77,42 +77,42 @@ const viewer = new GaussianSplats3D.Viewer({
 ### Coordinate System
 The library uses a **right-handed** Y-up coordinate system, same as Three.js.
 
-### Flipping the Camera
-The Livingroom splat was captured with an inverted orientation. To correct:
+### Corrected metric splat
+The viewer loads `Livingroom-in-Taipei.metric.ply`, which is already Y-up and in meters. The camera uses a normal up vector:
 
 ```javascript
 {
-    cameraUp: [0, -1, 0],  // Flip Y-axis to correct upside-down model
-    initialCameraPosition: [0.46, 0.40, 0.35],
-    initialCameraLookAt: [0.76, 0.58, -0.29]
+    cameraUp: [0, 1, 0],
+    initialCameraPosition: [0, 1.074, 0],
+    initialCameraLookAt: [-0.708, 0.628, -1.943]
 }
 ```
 
-**Explanation:**
-- `cameraUp: [0, -1, 0]` tells the camera "up" is actually "down" in world space
-- This effectively flips the rendered image 180° without modifying the model
+The origin is on the floor under the viewing position, and −Z points at the TV wall. Eye height at the calibrated pose is 1.074 m. Those two vectors are `metric_camera` and `metric_lookat` in `calib/transform.json`.
 
-### How Camera Coords Were Found
-1. Load the model in `splat-test.html`
-2. Orbit around until the view looks correct
-3. Copy coordinates from the live camera display
-4. Paste into `StandaloneSplatViewer.tsx`
+The original capture (`Livingroom-in-Taipei.ply`, still in `public/` and `media/`) is rolled 180° about Z, so +Y points down. It is also tilted about 0.9°, yawed about 3.1°, and stored in arbitrary units. While that file was on screen, the viewer compensated with `cameraUp: [0, -1, 0]` and hand-tuned coordinates (`position [0.72, 0.31, 0.05]`, look-at `[1.61, 1.02, -2.87]`). The metric file already contains that correction — positions, per-splat quaternions, and SH bands — so `cameraUp` stays `[0, 1, 0]`. See `calib/README.md` for the transform and how to regenerate it. Scale `0.675` is the 65-inch TV.
+
+### How the viewpoint was set
+1. `calib/correct.py` maps the old tuned camera and look-at through the same rotation, floor translation, and 0.675 scale.
+2. `StandaloneSplatViewer.tsx` uses the mapped coordinates as the base camera and as the fixed `lookAt` target after every head-tracking update.
 
 ---
 
 ## File Format
 
-**Primary Format:** `.ply` (Point Cloud format)  
-**File:** `public/Livingroom-in-Taipei.ply`
+**Primary Format:** `.ply` (3DGS point cloud)  
+**Viewer file:** `public/Livingroom-in-Taipei.metric.ply` (same bytes in `media/`, about 9 MB, 55,215 splats)  
+**Original capture:** `public/Livingroom-in-Taipei.ply` and `media/Livingroom-in-Taipei.ply` (unchanged)
 
-The file was NOT modified. It's a standard 3DGS PLY export containing:
-- 3D positions for each splat
-- Covariance matrices (ellipsoid shape)
-- Spherical harmonics (color/lighting)
-- Opacity values
+The metric file is that export after the `calib/correct.py` rotation and the 0.675 meter scale. Log-scales are shifted by `log(0.675)`. Each splat still has:
+
+- 3D position
+- Scale and quaternion (ellipsoid shape)
+- Spherical harmonics (`f_dc_*`, `f_rest_*`)
+- Opacity
 
 > [!NOTE]
-> There's also a `.spz` (compressed) variant, but we use `.ply` for broader compatibility.
+> There's also a `.spz` (compressed) variant of the original capture. The viewer uses the metric `.ply`.
 
 ---
 
@@ -128,17 +128,20 @@ useEffect(() => {
     const unsubY = headY.on('change', updateCamera);
     
     function updateCamera() {
-        const camX = baseCameraRef.current.x + headX.get() * parallaxStrength;
-        const camY = baseCameraRef.current.y + headY.get() * parallaxStrength;
-        // Apply to viewer.camera
+        const camX = baseCameraRef.current.x - headX.get() * xyResponse;
+        const camY = baseCameraRef.current.y - headY.get() * xyResponse;
+        viewer.camera.position.set(camX, camY, camZ);
+        viewer.camera.lookAt(baseTarget.x, baseTarget.y, baseTarget.z);
     }
 }, [headX, headY]);
 ```
 
 **Key Points:**
 - Base camera position is stored in a ref (doesn't change)
-- Head offset is added on top of base position
-- `parallaxStrength` controls how much the scene moves
+- Head offset is added on top of base position, then `camera.lookAt` locks onto the fixed metric target
+- Gains are the old arbitrary-unit gains times 0.675: `XY_RESPONSE_BASE = 0.405`, `DEPTH_SCALE = 1.01`
+- At the calibration distance (`HeadZ = -0.366`), camera Z is `0`
+- Webcam X is negated so image-left (the user's right, on an unmirrored frame) moves the camera toward +X. Webcam Y is still subtracted: MediaPipe Y grows downward, which raises the camera when the head moves up. The vertical sign has not been checked with a real webcam since the model was turned upright.
 
 ---
 
@@ -147,7 +150,7 @@ useEffect(() => {
 ```
 main.tsx
   └── BackgroundManager.tsx
-        └── (type === "livingroom")
+        └── (type === "mixed-reality")
               └── StandaloneSplatViewer.tsx
                     └── GaussianSplats3D.Viewer (internal)
 ```
@@ -160,8 +163,8 @@ main.tsx
 |---------|-------|-----|
 | Blank white screen | Renderer conflict with R3F | Use standalone viewer |
 | Hangs indefinitely | SharedArrayBuffer disabled | Use Safe Mode |
-| Model upside-down | Wrong camera orientation | Set `cameraUp: [0, -1, 0]` |
-| Wrong viewpoint | Incorrect camera coords | Use splat-test.html to find coords |
+| Model upside-down | Original capture is on screen, or the metric file is loaded with the old `cameraUp: [0, -1, 0]` | Load `Livingroom-in-Taipei.metric.ply` with `cameraUp: [0, 1, 0]`. The metric splat is already Y-up |
+| Wrong viewpoint | Camera does not match `calib/transform.json` | Use `metric_camera` `[0, 1.074, 0]` and `metric_lookat` `[-0.708, 0.628, -1.943]` |
 | "Module not found" | Missing types | Add `.d.ts` shim file |
 
 ---
@@ -173,7 +176,9 @@ main.tsx
 | `components/StandaloneSplatViewer.tsx` | Main viewer component |
 | `src/types/gaussian-splats-3d.d.ts` | TypeScript declarations |
 | `components/BackgroundManager.tsx` | Routes to viewer |
-| `public/Livingroom-in-Taipei.ply` | Splat data (75MB) |
+| `public/Livingroom-in-Taipei.metric.ply` | Corrected metric splat the viewer loads (~9 MB; copy in `media/`) |
+| `public/Livingroom-in-Taipei.ply` | Original capture, unchanged (~9 MB; copy in `media/`) |
+| `calib/` | Transform script, TV measurement, and recorded matrix |
 
 ---
 

@@ -1,6 +1,6 @@
 # Livingroom splat calibration
 
-`public/Livingroom-in-Taipei.metric.ply` (same bytes in `media/`) is the splat the viewer loads. The original capture, `Livingroom-in-Taipei.ply`, is unchanged in both directories.
+`public/Livingroom-in-Taipei.metric.ply` (same bytes in `media/`) is the corrected capture the viewer used before the v2 retrain. The app now loads `public/Livingroom-in-Taipei.v2.spz` by default, in this same frame; see `README_v2.md`. `?splat=metric` still loads this PLY. The original capture, `Livingroom-in-Taipei.ply`, is unchanged in both directories.
 
 The capture is rolled 180° about Z relative to three.js, so +Y points down. It is also tilted about 0.9°, yawed about 3.1°, and stored in arbitrary units. `correct.py` rotates positions, per-splat quaternions, and spherical-harmonic bands into a Y-up frame, then scales to meters. `transform.json` is the recorded matrix and the camera the viewer uses.
 

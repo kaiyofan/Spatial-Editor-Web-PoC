@@ -49,9 +49,12 @@ export const StandaloneSplatViewer: React.FC<StandaloneSplatViewerProps> = ({
             // Camera - corrected (metric) splat is +Y up, so no camera flip needed
             'cameraUp': [0, 1, 0],
             'useBuiltInControls': debugCameraControls,
-            // Corrected metric frame (calib/transform.json metric_camera / metric_lookat)
+            // Corrected metric frame (calib/transform.json metric_camera / metric_lookat).
+            // v2 is in this same frame; see calib/README_v2.md.
             'initialCameraPosition': [0, 1.074, 0],
             'initialCameraLookAt': [-0.708, 0.628, -1.943],
+            // v2 SPZ stores SH degree 2. The viewer defaults to 0 and would drop those bands.
+            'sphericalHarmonicsDegree': 2,
             // Safe Mode settings - CRITICAL for localhost without COOP/COEP
             'useWorker': false,
             'gpuAcceleratedSort': false,
@@ -62,10 +65,13 @@ export const StandaloneSplatViewer: React.FC<StandaloneSplatViewerProps> = ({
 
         viewerRef.current = viewer;
 
-        // Load the splat file
+        // 0.4.7 maps a .spz path to SceneFormat.Spz. Pass the format anyway so a
+        // renamed or query-suffixed URL still decodes as SPZ.
+        const isSpz = url.split('?')[0].toLowerCase().endsWith('.spz');
         viewer.addSplatScene(url, {
             'splatAlphaRemovalThreshold': 1, // Matches Safe Mode
             'showLoadingUI': true,
+            ...(isSpz ? { 'format': GaussianSplats3D.SceneFormat.Spz } : {}),
         })
             .then(() => {
                 console.log('[StandaloneSplatViewer] Loaded successfully!');

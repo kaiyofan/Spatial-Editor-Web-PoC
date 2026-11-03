@@ -77,8 +77,8 @@ const viewer = new GaussianSplats3D.Viewer({
 ### Coordinate System
 The library uses a **right-handed** Y-up coordinate system, same as Three.js.
 
-### Corrected metric splat
-The viewer loads `Livingroom-in-Taipei.metric.ply`, which is already Y-up and in meters. The camera uses a normal up vector:
+### Corrected metric frame
+The default scene is `Livingroom-in-Taipei.v2.spz` (retrained, SH degree 2, 501,470 splats). It is already in the same Y-up meter frame as `Livingroom-in-Taipei.metric.ply`, so the camera is unchanged. `?splat=metric` (or `?splat=ply`) loads that PLY instead. The viewer is constructed with `sphericalHarmonicsDegree: 2`. The camera uses a normal up vector:
 
 ```javascript
 {
@@ -100,11 +100,11 @@ The original capture (`Livingroom-in-Taipei.ply`, still in `public/` and `media/
 
 ## File Format
 
-**Primary Format:** `.ply` (3DGS point cloud)  
-**Viewer file:** `public/Livingroom-in-Taipei.metric.ply` (same bytes in `media/`, about 9 MB, 55,215 splats)  
+**Default file:** `public/Livingroom-in-Taipei.v2.spz` (SPZ v2, about 15.7 MB, 501,470 splats, SH degree 2). Provenance and the COLMAP-to-metric transform are in `calib/README_v2.md`.  
+**Fallback:** `public/Livingroom-in-Taipei.metric.ply` (same bytes in `media/`, about 9 MB, 55,215 splats), selected with `?splat=metric`.  
 **Original capture:** `public/Livingroom-in-Taipei.ply` and `media/Livingroom-in-Taipei.ply` (unchanged)
 
-The metric file is that export after the `calib/correct.py` rotation and the 0.675 meter scale. Log-scales are shifted by `log(0.675)`. Each splat still has:
+The metric PLY is the original export after the `calib/correct.py` rotation and the 0.675 meter scale. Log-scales are shifted by `log(0.675)`. v2 was retrained from the iPhone videos and then placed in that same frame (`calib/colmap_to_metric_transform.json`). Each splat still has:
 
 - 3D position
 - Scale and quaternion (ellipsoid shape)
@@ -112,7 +112,7 @@ The metric file is that export after the `calib/correct.py` rotation and the 0.6
 - Opacity
 
 > [!NOTE]
-> There's also a `.spz` (compressed) variant of the original capture. The viewer uses the metric `.ply`.
+> `media/Livingroom-in-Taipei.spz` is an older compressed copy of the original capture. The viewer default is `public/Livingroom-in-Taipei.v2.spz`.
 
 ---
 
@@ -176,7 +176,8 @@ main.tsx
 | `components/StandaloneSplatViewer.tsx` | Main viewer component |
 | `src/types/gaussian-splats-3d.d.ts` | TypeScript declarations |
 | `components/BackgroundManager.tsx` | Routes to viewer |
-| `public/Livingroom-in-Taipei.metric.ply` | Corrected metric splat the viewer loads (~9 MB; copy in `media/`) |
+| `public/Livingroom-in-Taipei.v2.spz` | Default scene: retrained SPZ, SH degree 2 (~15.7 MB, 501k splats) |
+| `public/Livingroom-in-Taipei.metric.ply` | Previous metric splat (`?splat=metric`; ~9 MB; copy in `media/`) |
 | `public/Livingroom-in-Taipei.ply` | Original capture, unchanged (~9 MB; copy in `media/`) |
 | `calib/` | Transform script, TV measurement, and recorded matrix |
 

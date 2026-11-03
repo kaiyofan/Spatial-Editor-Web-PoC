@@ -29,7 +29,7 @@ We model the screen as a physical window frame. Your head position determines wh
 
 2.  **Calibration & Mapping (`StandaloneSplatViewer.tsx`)**
     *   We don't just use raw values; we calibrate them to the user's physical comfort zone.
-    *   **Comfort Zone:** When the user sits at a comfortable distance (`HeadZ = -0.366` in our calibration), we force the camera to be at a specific "perfect view" coordinate (`CamZ = 0.05`).
+    *   **Comfort Zone:** When the user sits at a comfortable distance (`HeadZ = -0.366` in our calibration), the metric camera sits at the floor-origin viewpoint (`CamZ = 0`, eye height 1.074 m).
     *   **Formula:**
         ```typescript
         TargetZ = CalibratedCamZ - (CurrentHeadZ - CalibratedHeadZ) * DepthScale

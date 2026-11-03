@@ -2,6 +2,20 @@ import React from "react";
 import { motion, MotionValue, useTransform, useSpring } from "motion/react";
 import { StandaloneSplatViewer } from "./StandaloneSplatViewer";
 
+/** Retrained SPZ (SH degree 2), same metric frame as the PLY. Default scene. */
+export const SPLAT_V2_URL = "Livingroom-in-Taipei.v2.spz";
+/** Older corrected PLY. `?splat=metric` (or `?splat=ply`) loads this instead. */
+export const SPLAT_METRIC_PLY_URL = "Livingroom-in-Taipei.metric.ply";
+/** Change this constant to ship the metric PLY without a query param. */
+const DEFAULT_SPLAT_URL = SPLAT_V2_URL;
+
+function splatUrlFromLocation(): string {
+  if (typeof window === "undefined") return DEFAULT_SPLAT_URL;
+  const splat = new URLSearchParams(window.location.search).get("splat");
+  if (splat === "metric" || splat === "ply") return SPLAT_METRIC_PLY_URL;
+  return DEFAULT_SPLAT_URL;
+}
+
 export type BackgroundType =
   | "original"
   | "bg"
@@ -93,7 +107,7 @@ export const BackgroundManager: React.FC<BackgroundManagerProps> = ({
     return (
       <div className="absolute inset-0 z-0 bg-black">
         <StandaloneSplatViewer
-          url="Livingroom-in-Taipei.ply"
+          url={splatUrlFromLocation()}
           className="w-full h-full"
           headX={effectiveX}
           headY={effectiveY}

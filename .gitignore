@@ -7,3 +7,7 @@ target/
 .env
 .gemini
 .ini
+# Pre-scale intermediate from calib/correct.py. The viewer uses the metric PLY.
+calib/Livingroom-in-Taipei.corrected.ply
+__pycache__/
+*.pyc
